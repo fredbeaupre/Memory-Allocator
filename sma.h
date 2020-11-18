@@ -33,14 +33,13 @@ extern char *sma_malloc_error;
 typedef struct block_header
 {
     int size;
-    struct block_header *next;
     struct block_header *prev;
+    struct block_header *next;
     int is_free;
 } block_header;
 
 //  Public Functions declaration
-void *
-sma_malloc(int size);
+void *sma_malloc(int size);
 void sma_free(void *ptr);
 void sma_mallopt(int policy);
 void sma_mallinfo();

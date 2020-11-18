@@ -190,12 +190,7 @@ void *sma_realloc(void *ptr, int size)
 void *allocate_pBrk(int size)
 {
     void *newBlock = NULL;
-    int excessSize = FREE_BLOCK_HEADER_SIZE;
-
-    if (size <= 0)
-    {
-        return NULL;
-    }
+    int excessSize = 1024;
 
     //	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
     //	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -203,6 +198,7 @@ void *allocate_pBrk(int size)
 
     //	Allocates the Memory Block
     newBlock = sbrk(size + excessSize);
+    printf("NEW BLOCK %p\n", newBlock);
     allocate_block(newBlock, size, excessSize, 0);
 
     return newBlock;
@@ -310,7 +306,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
     void *excessFreeBlock; //	pointer for any excess free block
     int addFreeBlock;
-    block_header *header; // create the block_header
+    block_header header;
 
     // 	Checks if excess free size is big enough to be added to the free memory list
     //	Helps to reduce external fragmentation
@@ -323,11 +319,11 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
     if (addFreeBlock)
     {
         //	TODO: Create a free block using the excess memory size, then assign it to the Excess Free Block
-        header->next = NULL;
-        header->prev = NULL;
-        header->size = excessSize;
-        header->is_free = 1;
-        excessFreeBlock = header; // assigning to Excess Free Block
+        header.next = NULL;
+        header.prev = NULL;
+        header.size = excessSize;
+        header.is_free = 1;
+        excessFreeBlock = &header;
         //	Checks if the new block was allocated from the free memory list
         if (fromFreeList)
         {
@@ -367,18 +363,6 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
     //	Updates SMA info
     totalAllocatedSize += (get_blockSize(oldBlock) - get_blockSize(newBlock));
     totalFreeSize += (get_blockSize(newBlock) - get_blockSize(oldBlock));
-    block_header *old_header, *new_header;
-    old_header = (block_header *)oldBlock;
-    new_header = (block_header *)newBlock;
-
-    // to replace a block from free list by a new block,
-    // we remove pointers from the old block to its neighbors by assigning those neighbors to the new block
-    new_header->next = old_header->next;
-    new_header->prev = old_header->prev;
-    new_header->size = old_header->size;
-    new_header->is_free = 1;
-
-    newBlock = new_header;
 }
 
 /*
@@ -400,50 +384,10 @@ void add_block_freeList(void *block)
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
 
-    block_header *added_block, *tail_header, *merged_block;
-
-    added_block = (block_header *)block;
-
-    int merge_tag;
-
-    // check if a free block list exists
     if (!freeListHead)
-    { // if not, then make the block we want to add the head of the list
-        freeListHead = added_block;
-        freeListTail = added_block;
-    }
-    else
     {
-        if (!freeListTail)
-        {
-            printf("Fuck how did this happen\n");
-        }
-        else
-        {
-            tail_header = (block_header *)freeListTail;
-
-            merge_tag = tail_header->is_free;
-
-            if (merge_tag)
-            { // if need to merge with listTail before adjusting the tail pointer
-                merged_block->size = tail_header->size + added_block->size;
-                merged_block->prev = tail_header->prev;
-                merged_block->next = tail_header->next; // should be NULL, consider setting it right away instead
-                tail_header->prev = NULL;
-                tail_header->next = NULL;
-                merged_block->is_free = 1;
-
-                freeListTail = merged_block; // adjusting list tail
-            }
-            else
-            { // can't merge with list tail, adjust accordingly
-                tail_header->next = added_block;
-                added_block->prev = tail_header;
-                added_block->next = NULL; // should already be the case, but won't hurt to set it twice
-
-                freeListTail = added_block;
-            }
-        }
+        freeListHead = block;
+        freeListTail = block;
     }
 }
 
@@ -473,14 +417,10 @@ void remove_block_freeList(void *block)
 int get_blockSize(void *ptr)
 {
     int *pSize;
-    int some_size;
-
-    block_header *header;
-    header = (block_header *)ptr;
 
     //	Points to the address where the Length of the block is stored
     pSize = (int *)ptr;
-    pSize--;
+    printf("SIZE IS %d\n", *pSize);
 
     //	Returns the deferenced size
     return *(int *)pSize;
@@ -495,24 +435,10 @@ int get_blockSize(void *ptr)
 int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
-    int current_size;
-    block_header *head_ptr, *tail_ptr, *current_ptr;
 
     //	TODO: Iterate through the Free Block List to find the largest free block and return its size
-    head_ptr = (block_header *)freeListHead;
-    tail_ptr = (block_header *)freeListTail;
-    current_ptr = head_ptr;
-
-    while (current_ptr != NULL)
-    {
-        current_size = get_blockSize(current_ptr);
-        if (current_size > largestBlockSize)
-        {
-            largestBlockSize = current_size;
-        }
-
-        current_ptr = current_ptr->next;
-    }
-
+    void *current_ptr;
+    current_ptr = freeListHead;
+    largestBlockSize = get_blockSize(current_ptr);
     return largestBlockSize;
 }

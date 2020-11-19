@@ -383,10 +383,12 @@ void add_block_freeList(void *block)
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
     block_header *added_block;
+    char buffer[50];
 
     added_block = (block_header *)block;
 
-    printf("Trying to add block of size %d and is_free %d\n", added_block->size, added_block->is_free);
+    sprintf(buffer, "Trying to add block of size %d and is_free %d\n", added_block->size, added_block->is_free);
+    puts(buffer);
 
     if (!freeListHead ||
         (unsigned long)freeListHead > (unsigned long)added_block) // if list empty or block address smaller than head address
@@ -396,7 +398,8 @@ void add_block_freeList(void *block)
 
             if (freeListHead->is_free) // if there is a freeListHead and it's free
             {
-                printf("MERGING THE HEAD\n");
+                sprintf(buffer, "MERGING HEAD\n");
+                puts(buffer);
                 freeListHead->size = freeListHead->size + added_block->size;
             }
             else
@@ -423,7 +426,8 @@ void add_block_freeList(void *block)
         {
             if (curr->is_free) // if tail block is free
             {
-                printf("MERGING TAIL\n");
+                sprintf(buffer, "MERGING TAIL\n");
+                puts(buffer);
                 curr->size = curr->size + added_block->size;
                 freeListTail = curr;
             }
@@ -509,8 +513,11 @@ int get_blockSize(void *ptr)
 int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
+    char buffer[50];
 
-    printf("%d\n", get_blockSize(freeListHead));
+    sprintf(buffer, "%d\n", get_blockSize(freeListHead));
+
+    puts(buffer);
 
     return largestBlockSize;
 }

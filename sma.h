@@ -57,4 +57,5 @@ static void remove_block_freeList(void *block);
 static int get_blockSize(void *ptr);
 static int get_largest_freeBlock();
 static void get_address_list();
+static block_header *get_block(void *);
 //  TODO: Declare any private functions that you intend to add in your code.

@@ -407,6 +407,14 @@ void add_block_freeList(void *block)
             curr = curr->next; // keep iterating as long as added block address is larger than current address
         }
 
+        if (!curr->next)
+        {
+            printf("Current block is tail\n");
+            curr->next = added_block;
+            added_block->prev = curr;
+            freeListTail = added_block;
+        }
+
         added_block->next = curr->next;
         curr->next = added_block;
     }
@@ -457,18 +465,12 @@ int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
 
-    block_header *curr, *temp_stop;
-    curr = freeListHead;
-    temp_stop = curr->next->next->next->next;
-    while (curr != temp_stop)
-    {
-        printf("%d\n", curr->size);
-        if (curr->size > largestBlockSize)
-        {
-            largestBlockSize = curr->size;
-        }
-        curr = curr->next;
-    }
+    printf("%d\n", get_blockSize(freeListHead));
 
     return largestBlockSize;
+}
+
+block_header *get_block(void *ptr)
+{
+    return (block_header *)ptr - 1;
 }

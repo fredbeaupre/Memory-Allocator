@@ -434,9 +434,34 @@ void add_block_freeList(void *block)
                 freeListTail = added_block;
             }
         }
-        // blocks that are between head and tail
-        added_block->next = curr->next;
-        curr->next = added_block;
+        else
+        {
+            if (!curr->is_free && !curr->next->is_free) // if both neighbors are already allocated
+            {
+                added_block->next = curr->next;
+                added_block->prev = curr;
+                curr->next->prev = added_block;
+                curr->next = added_block;
+            }
+            else if (curr->is_free && !curr->next->is_free) // if prev neighbor is free but not next
+            {
+                curr->size = curr->size + added_block->size;
+            }
+            else if (!curr->is_free && curr->next->is_free) // if next neighbor is free but not prev
+            {
+                curr->next->size = curr->next->size + added_block->size;
+            }
+            else // if both neighbors are free
+            {
+                added_block->size = curr->size + added_block->size + curr->next->size;
+                added_block->next = curr->next->next;
+                added_block->prev = curr->prev;
+                curr->next->next->prev = added_block;
+                curr->prev->next = added_block;
+                curr->prev = NULL;
+                curr->next->next = NULL;
+            }
+        }
     }
 }
 

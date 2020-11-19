@@ -25,7 +25,7 @@
 /* Definitions*/
 #define MAX_TOP_FREE (128 * 1024) // Max top free block size = 128 Kbytes
 //	TODO: Change the Header size if required
-#define FREE_BLOCK_HEADER_SIZE sizeof(block_header *) // Size of the Header in a free memory block
+#define FREE_BLOCK_HEADER_SIZE 2 * sizeof(char *) + sizeof(int) // Size of the Header in a free memory block
 //	TODO: Add constants here
 
 typedef enum //	Policy type definition
@@ -35,8 +35,8 @@ typedef enum //	Policy type definition
 } Policy;
 
 char *sma_malloc_error;
-void *freeListHead = NULL;            //	The pointer to the HEAD of the doubly linked free memory list
-void *freeListTail = NULL;            //	The pointer to the TAIL of the doubly linked free memory list
+block_header *freeListHead = NULL;    //	The pointer to the HEAD of the doubly linked free memory list
+block_header *freeListTail = NULL;    //	The pointer to the TAIL of the doubly linked free memory list
 unsigned long totalAllocatedSize = 0; //	Total Allocated memory in Bytes
 unsigned long totalFreeSize = 0;      //	Total Free memory in Bytes in the free memory list
 Policy currentPolicy = WORST;         //	Current Policy
@@ -190,7 +190,7 @@ void *sma_realloc(void *ptr, int size)
 void *allocate_pBrk(int size)
 {
     void *newBlock = NULL;
-    int excessSize = 1024;
+    int excessSize = 2048;
 
     //	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
     //	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -198,7 +198,6 @@ void *allocate_pBrk(int size)
 
     //	Allocates the Memory Block
     newBlock = sbrk(size + excessSize);
-    printf("NEW BLOCK %p\n", newBlock);
     allocate_block(newBlock, size, excessSize, 0);
 
     return newBlock;
@@ -306,7 +305,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
     void *excessFreeBlock; //	pointer for any excess free block
     int addFreeBlock;
-    block_header header;
+    block_header free_block;
 
     // 	Checks if excess free size is big enough to be added to the free memory list
     //	Helps to reduce external fragmentation
@@ -319,11 +318,11 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
     if (addFreeBlock)
     {
         //	TODO: Create a free block using the excess memory size, then assign it to the Excess Free Block
-        header.next = NULL;
-        header.prev = NULL;
-        header.size = excessSize;
-        header.is_free = 1;
-        excessFreeBlock = &header;
+        free_block.size = excessSize;
+        free_block.next = NULL;
+        free_block.prev = NULL;
+        free_block.is_free = 1;
+        excessFreeBlock = &free_block;
         //	Checks if the new block was allocated from the free memory list
         if (fromFreeList)
         {
@@ -383,11 +382,33 @@ void add_block_freeList(void *block)
     //	Updates SMA info
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
+    block_header *added_block;
 
-    if (!freeListHead)
+    added_block = (block_header *)block;
+
+    printf("Trying to add block of size %d and is_free %d\n", added_block->size, added_block->is_free);
+
+    if (!freeListHead ||
+        (unsigned long)freeListHead > (unsigned long)added_block) // if list empty or block address smaller than head address
     {
-        freeListHead = block;
-        freeListTail = block;
+        if (freeListHead) // if block address smaller than head address
+        {
+            freeListHead->prev = added_block; // update list head
+        }
+        added_block->next = freeListHead;
+        freeListHead = added_block;
+    }
+    else
+    {
+        block_header *curr = freeListHead;
+        while (curr->next &&
+               (unsigned long)curr->next < (unsigned long)added_block)
+        {
+            curr = curr->next; // keep iterating as long as added block address is larger than current address
+        }
+
+        added_block->next = curr->next;
+        curr->next = added_block;
     }
 }
 
@@ -420,7 +441,7 @@ int get_blockSize(void *ptr)
 
     //	Points to the address where the Length of the block is stored
     pSize = (int *)ptr;
-    printf("SIZE IS %d\n", *pSize);
+    pSize--;
 
     //	Returns the deferenced size
     return *(int *)pSize;
@@ -436,9 +457,18 @@ int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
 
-    //	TODO: Iterate through the Free Block List to find the largest free block and return its size
-    void *current_ptr;
-    current_ptr = freeListHead;
-    largestBlockSize = get_blockSize(current_ptr);
+    block_header *curr, *temp_stop;
+    curr = freeListHead;
+    temp_stop = curr->next->next->next->next;
+    while (curr != temp_stop)
+    {
+        printf("%d\n", curr->size);
+        if (curr->size > largestBlockSize)
+        {
+            largestBlockSize = curr->size;
+        }
+        curr = curr->next;
+    }
+
     return largestBlockSize;
 }

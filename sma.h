@@ -33,8 +33,8 @@ extern char *sma_malloc_error;
 typedef struct block_header
 {
     int size;
-    struct block_header *prev;
     struct block_header *next;
+    struct block_header *prev;
     int is_free;
 } block_header;
 
@@ -56,4 +56,5 @@ static void add_block_freeList(void *block);
 static void remove_block_freeList(void *block);
 static int get_blockSize(void *ptr);
 static int get_largest_freeBlock();
+static void get_address_list();
 //  TODO: Declare any private functions that you intend to add in your code.

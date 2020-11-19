@@ -169,8 +169,7 @@ int main(int argc, char *argv[])
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
 	// Writes some value pointed by the pointer
-	if (cp3 != NULL && cp4 != NULL)
-	{
+	if(cp3 != NULL && cp4 != NULL) {
 		*cp3 = 427;
 		*cp4 = 310;
 	}
@@ -181,14 +180,12 @@ int main(int argc, char *argv[])
 	if (cp3 == c2[27] && cp3 != NULL && cp4 == c2[8] && cp4 != NULL)
 	{
 		//	Test the Data stored in the memory blocks
-		if (*cp3 == 427 && *cp4 == 310)
-		{
+		if (*cp3 == 427 && *cp4 == 310) {
 			puts("\t\t\t\t PASSED\n");
 		}
-		else
-		{
+		else {
 			puts("\t\t\t\t FAILED\n");
-		}
+		}				
 	}
 	else
 	{

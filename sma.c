@@ -393,8 +393,20 @@ void add_block_freeList(void *block)
     {
         if (freeListHead) // if block address smaller than head address
         {
-            freeListHead->prev = added_block; // update list head
+
+            if (freeListHead->is_free) // if there is a freeListHead and it's free
+            {
+                printf("MERGING THE HEAD\n");
+                freeListHead->size = freeListHead->size + added_block->size;
+            }
+            else
+            {                                     // if there is a free list head but it's not free
+                freeListHead->prev = added_block; // update list head
+                added_block->next = freeListHead;
+                freeListHead = added_block;
+            }
         }
+        // if there is no free List Head
         added_block->next = freeListHead;
         freeListHead = added_block;
     }
@@ -407,14 +419,22 @@ void add_block_freeList(void *block)
             curr = curr->next; // keep iterating as long as added block address is larger than current address
         }
 
-        if (!curr->next)
+        if (!curr->next) // current block is tail
         {
-            printf("Current block is tail\n");
-            curr->next = added_block;
-            added_block->prev = curr;
-            freeListTail = added_block;
+            if (curr->is_free) // if tail block is free
+            {
+                printf("MERGING TAIL\n");
+                curr->size = curr->size + added_block->size;
+                freeListTail = curr;
+            }
+            else // if tail block is not free -> adjust tail accordingly
+            {
+                curr->next = added_block;
+                added_block->prev = curr;
+                freeListTail = added_block;
+            }
         }
-
+        // blocks that are between head and tail
         added_block->next = curr->next;
         curr->next = added_block;
     }

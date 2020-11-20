@@ -437,7 +437,7 @@ void add_block_freeList(void *block)
         {
             if (curr->is_free)
             { // if tail is free
-                curr->size = ALIGN(curr->size + new_block->size);
+                curr->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                 freeListTail = curr; // should not need to do this but let's be extra safe
             }
             else
@@ -445,6 +445,34 @@ void add_block_freeList(void *block)
                 curr->next = new_block;
                 new_block->prev = curr;
                 freeListTail = new_block;
+            }
+        }
+        else
+        {
+            if (!curr->is_free && !curr->next->is_free)
+            {
+                new_block->next = curr->next;
+                new_block->prev = curr;
+                curr->next->prev = new_block;
+                curr->next = new_block;
+            }
+            else if (curr->is_free && !curr->next->is_free)
+            {
+                curr->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+            }
+            else if (!curr->is_free && curr->next->is_free)
+            {
+                curr->next->size = ALIGN(curr->next->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+            }
+            else
+            { // if both neighbors are free;
+                new_block->size = ALIGN(curr->size + new_block->size + curr->next->size - FREE_BLOCK_HEADER_SIZE);
+                new_block->next = curr->next->next;
+                new_block->prev = curr->prev;
+                curr->next->next->prev = new_block;
+                curr->prev->next = new_block;
+                curr->prev = NULL;
+                curr->next->next = NULL;
             }
         }
     }
@@ -497,7 +525,8 @@ int get_largest_freeBlock()
     char buffer[60];
 
     curr = freeListHead;
-    sprintf(buffer, "curr->next %p\n", curr->next);
+    largestBlockSize = curr->size;
+    sprintf(buffer, "curr %p\n", curr->next);
     puts(buffer);
     while (curr->next)
     {

@@ -264,7 +264,7 @@ void *allocate_worst_fit(int size)
     char buffer[200];
 
     list_details();
-    sleep(1);
+    usleep(10000);
 
     //	TODO: 	Allocate memory by using Worst Fit Policy
     //	Hint:	Start off with the freeListHead and iterate through the entire list to
@@ -453,7 +453,7 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
     alloc_block = (block_header *)oldBlock;
     if (alloc_block->is_free)
     {
-        remove_block_freeList;
+        remove_block_freeList(oldBlock);
     }
 
     add_block_freeList(newBlock);
@@ -630,7 +630,7 @@ void remove_block_freeList(void *block)
         dead_block->prev->next = dead_block->next;
     }
 
-    sprintf(buffer, "Removing block of size %d from list\n", dead_block->size);
+    sprintf(buffer, "Removing block %p of size %d from list\n", dead_block, dead_block->size);
     puts(buffer);
 }
 

@@ -25,8 +25,10 @@
 /* Definitions*/
 #define MAX_TOP_FREE (128 * 1024) // Max top free block size = 128 Kbytes
 //	TODO: Change the Header size if required
-#define FREE_BLOCK_HEADER_SIZE 2 * sizeof(char *) + sizeof(int) // Size of the Header in a free memory block
+#define FREE_BLOCK_HEADER_SIZE sizeof(block_header) // Size of the Header in a free memory block
 //	TODO: Add constants here
+#define ALIGNMENT 8
+#define ALIGN(size) (((size) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
 
 typedef enum //	Policy type definition
 {
@@ -35,8 +37,8 @@ typedef enum //	Policy type definition
 } Policy;
 
 char *sma_malloc_error;
-block_header *freeListHead = NULL;    //	The pointer to the HEAD of the doubly linked free memory list
-block_header *freeListTail = NULL;    //	The pointer to the TAIL of the doubly linked free memory list
+void *freeListHead = NULL;            //	The pointer to the HEAD of the doubly linked free memory list
+void *freeListTail = NULL;            //	The pointer to the TAIL of the doubly linked free memory list
 unsigned long totalAllocatedSize = 0; //	Total Allocated memory in Bytes
 unsigned long totalFreeSize = 0;      //	Total Free memory in Bytes in the free memory list
 Policy currentPolicy = WORST;         //	Current Policy
@@ -190,14 +192,21 @@ void *sma_realloc(void *ptr, int size)
 void *allocate_pBrk(int size)
 {
     void *newBlock = NULL;
-    int excessSize = 2048;
+    int excessSize = 1024; // 1KB
+    int newSize;
+    block_header *new_block;
 
     //	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
     //	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
     //			Also, if you are getting a larger memory, you need to put the excess in the free list
 
     //	Allocates the Memory Block
-    newBlock = sbrk(size + excessSize);
+    newSize = ALIGN(size + FREE_BLOCK_HEADER_SIZE + excessSize);
+    new_block = sbrk(newSize);
+    new_block->is_free = 0;
+    new_block->address = new_block + FREE_BLOCK_HEADER_SIZE;
+
+    newBlock = new_block;
     allocate_block(newBlock, size, excessSize, 0);
 
     return newBlock;
@@ -305,7 +314,8 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
 {
     void *excessFreeBlock; //	pointer for any excess free block
     int addFreeBlock;
-    block_header free_block;
+    block_header *free_block, *new_block;
+    char buffer[60];
 
     // 	Checks if excess free size is big enough to be added to the free memory list
     //	Helps to reduce external fragmentation
@@ -318,11 +328,19 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
     if (addFreeBlock)
     {
         //	TODO: Create a free block using the excess memory size, then assign it to the Excess Free Block
-        free_block.size = excessSize;
-        free_block.next = NULL;
-        free_block.prev = NULL;
-        free_block.is_free = 1;
-        excessFreeBlock = &free_block;
+        free_block = newBlock + ALIGN(FREE_BLOCK_HEADER_SIZE + size);
+        free_block->next = NULL;
+        free_block->prev = NULL;
+        free_block->is_free = 1;
+        free_block->size = ALIGN(FREE_BLOCK_HEADER_SIZE + excessSize);
+        free_block->address = free_block + FREE_BLOCK_HEADER_SIZE;
+        excessFreeBlock = (void *)free_block;
+
+        sprintf(buffer, "FREE BLOCK SIZE %d\n", free_block->size);
+        puts(buffer);
+        sprintf(buffer, "EXCESS BLOCK SIZE %d\n", get_blockSize(excessFreeBlock));
+        puts(buffer);
+
         //	Checks if the new block was allocated from the free memory list
         if (fromFreeList)
         {
@@ -382,91 +400,11 @@ void add_block_freeList(void *block)
     //	Updates SMA info
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
-    block_header *added_block;
-    char buffer[50];
 
-    added_block = (block_header *)block;
+    block_header *block_hd;
+    block_hd = (block_header *)block;
 
-    sprintf(buffer, "Trying to add block of size %d and is_free %d\n", added_block->size, added_block->is_free);
-    puts(buffer);
-
-    if (!freeListHead ||
-        (unsigned long)freeListHead > (unsigned long)added_block) // if list empty or block address smaller than head address
-    {
-        if (freeListHead) // if block address smaller than head address
-        {
-
-            if (freeListHead->is_free) // if there is a freeListHead and it's free
-            {
-                sprintf(buffer, "MERGING HEAD\n");
-                puts(buffer);
-                freeListHead->size = freeListHead->size + added_block->size;
-            }
-            else
-            {                                     // if there is a free list head but it's not free
-                freeListHead->prev = added_block; // update list head
-                added_block->next = freeListHead;
-                freeListHead = added_block;
-            }
-        }
-        // if there is no free List Head
-        added_block->next = freeListHead;
-        freeListHead = added_block;
-    }
-    else
-    {
-        block_header *curr = freeListHead;
-        while (curr->next &&
-               (unsigned long)curr->next < (unsigned long)added_block)
-        {
-            curr = curr->next; // keep iterating as long as added block address is larger than current address
-        }
-
-        if (!curr->next) // current block is tail
-        {
-            if (curr->is_free) // if tail block is free
-            {
-                sprintf(buffer, "MERGING TAIL\n");
-                puts(buffer);
-                curr->size = curr->size + added_block->size;
-                freeListTail = curr;
-            }
-            else // if tail block is not free -> adjust tail accordingly
-            {
-                curr->next = added_block;
-                added_block->prev = curr;
-                freeListTail = added_block;
-            }
-        }
-        else
-        {
-            if (!curr->is_free && !curr->next->is_free) // if both neighbors are already allocated
-            {
-                added_block->next = curr->next;
-                added_block->prev = curr;
-                curr->next->prev = added_block;
-                curr->next = added_block;
-            }
-            else if (curr->is_free && !curr->next->is_free) // if prev neighbor is free but not next
-            {
-                curr->size = curr->size + added_block->size;
-            }
-            else if (!curr->is_free && curr->next->is_free) // if next neighbor is free but not prev
-            {
-                curr->next->size = curr->next->size + added_block->size;
-            }
-            else // if both neighbors are free
-            {
-                added_block->size = curr->size + added_block->size + curr->next->size;
-                added_block->next = curr->next->next;
-                added_block->prev = curr->prev;
-                curr->next->next->prev = added_block;
-                curr->prev->next = added_block;
-                curr->prev = NULL;
-                curr->next->next = NULL;
-            }
-        }
-    }
+    freeListHead = block_hd;
 }
 
 /*
@@ -498,7 +436,6 @@ int get_blockSize(void *ptr)
 
     //	Points to the address where the Length of the block is stored
     pSize = (int *)ptr;
-    pSize--;
 
     //	Returns the deferenced size
     return *(int *)pSize;
@@ -513,16 +450,8 @@ int get_blockSize(void *ptr)
 int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
-    char buffer[50];
 
-    sprintf(buffer, "%d\n", get_blockSize(freeListHead));
-
-    puts(buffer);
+    //	TODO: Iterate through the Free Block List to find the largest free block and return its size
 
     return largestBlockSize;
-}
-
-block_header *get_block(void *ptr)
-{
-    return (block_header *)ptr - 1;
 }

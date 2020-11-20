@@ -37,8 +37,8 @@ typedef enum //	Policy type definition
 } Policy;
 
 char *sma_malloc_error;
-void *freeListHead = NULL;            //	The pointer to the HEAD of the doubly linked free memory list
-void *freeListTail = NULL;            //	The pointer to the TAIL of the doubly linked free memory list
+block_header *freeListHead = NULL;    //	The pointer to the HEAD of the doubly linked free memory list
+block_header *freeListTail = NULL;    //	The pointer to the TAIL of the doubly linked free memory list
 unsigned long totalAllocatedSize = 0; //	Total Allocated memory in Bytes
 unsigned long totalFreeSize = 0;      //	Total Free memory in Bytes in the free memory list
 Policy currentPolicy = WORST;         //	Current Policy
@@ -204,6 +204,7 @@ void *allocate_pBrk(int size)
     newSize = ALIGN(size + FREE_BLOCK_HEADER_SIZE + excessSize);
     new_block = sbrk(newSize);
     new_block->is_free = 0;
+    new_block->size = ALIGN(size);
     new_block->address = new_block + FREE_BLOCK_HEADER_SIZE;
 
     newBlock = new_block;
@@ -336,11 +337,6 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
         free_block->address = free_block + FREE_BLOCK_HEADER_SIZE;
         excessFreeBlock = (void *)free_block;
 
-        sprintf(buffer, "FREE BLOCK SIZE %d\n", free_block->size);
-        puts(buffer);
-        sprintf(buffer, "EXCESS BLOCK SIZE %d\n", get_blockSize(excessFreeBlock));
-        puts(buffer);
-
         //	Checks if the new block was allocated from the free memory list
         if (fromFreeList)
         {
@@ -400,11 +396,58 @@ void add_block_freeList(void *block)
     //	Updates SMA info
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
+    char buffer[60];
 
-    block_header *block_hd;
-    block_hd = (block_header *)block;
+    block_header *curr, *new_block;
 
-    freeListHead = block_hd;
+    new_block = (block_header *)block;
+
+    if (!freeListHead ||
+        (unsigned long)freeListHead > (unsigned long)new_block) // checks if empty list or address smaller than head address
+    {
+        if (freeListHead)
+        {
+            if (freeListHead->is_free) // if head exists and is free
+            {
+                freeListHead->size = ALIGN(freeListHead->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+                freeListHead = (void *)freeListHead;
+            }
+            else
+            { // if head exists and is allocated
+                freeListHead->prev = new_block;
+                new_block->next = freeListHead;
+                freeListHead = (void *)new_block;
+            }
+        } // if there is no free list head
+        new_block->next = freeListHead;
+        freeListHead = (void *)new_block;
+        freeListTail = freeListHead;
+    }
+    else
+    {
+        curr = freeListHead;
+        while (curr->next &&
+               (unsigned long)curr->next < (unsigned long)new_block)
+        {
+            // keep iterationg long as new_block's address is larger than current address
+            curr = curr->next;
+        }
+
+        if (!curr->next) // if curr is list tail
+        {
+            if (curr->is_free)
+            { // if tail is free
+                curr->size = ALIGN(curr->size + new_block->size);
+                freeListTail = curr; // should not need to do this but let's be extra safe
+            }
+            else
+            { // if tail block is not free
+                curr->next = new_block;
+                new_block->prev = curr;
+                freeListTail = new_block;
+            }
+        }
+    }
 }
 
 /*
@@ -450,6 +493,22 @@ int get_blockSize(void *ptr)
 int get_largest_freeBlock()
 {
     int largestBlockSize = 0;
+    block_header *curr;
+    char buffer[60];
+
+    curr = freeListHead;
+    sprintf(buffer, "curr->next %p\n", curr->next);
+    puts(buffer);
+    while (curr->next)
+    {
+        sprintf(buffer, "block size %d\n", curr->size);
+        puts(buffer);
+        if (curr->size > largestBlockSize)
+        {
+            largestBlockSize = curr->size;
+        }
+        curr = curr->next;
+    }
 
     //	TODO: Iterate through the Free Block List to find the largest free block and return its size
 

@@ -252,15 +252,40 @@ void *allocate_worst_fit(int size)
     void *worstBlock = NULL;
     int excessSize;
     int blockFound = 0;
+    block_header *chosen_block, *curr;
+    int max_size;
+    char buffer[60];
 
     //	TODO: 	Allocate memory by using Worst Fit Policy
     //	Hint:	Start off with the freeListHead and iterate through the entire list to
     //			get the largest block
 
+    curr = freeListHead;
+    max_size = curr->size;
+    chosen_block = curr;
+    while (curr->next)
+    {
+        if (curr->size > max_size)
+        {
+            max_size = curr->size;
+            chosen_block = curr;
+        }
+    }
+
+    //blockFound = (chosen_block->size > size) ? 1 : 0; // PROBLEM WITH TEST3 start when i uncomment this line because
+    // then we jump to allocate_block and then to replace_block_freelist
+
+    //chosen_block->size = ALIGN(FREE_BLOCK_HEADER_SIZE + size);
+    //chosen_block->is_free = 0;
+
     //	Checks if appropriate block is found.
     if (blockFound)
     {
         //	Allocates the Memory Block
+        excessSize = max_size - size;
+        //worstBlock = (void *)chosen_block;
+        sprintf(buffer, "Allocating worst block\n");
+        puts(buffer);
         allocate_block(worstBlock, size, excessSize, 1);
     }
     else
@@ -376,6 +401,9 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
     //	Updates SMA info
     totalAllocatedSize += (get_blockSize(oldBlock) - get_blockSize(newBlock));
     totalFreeSize += (get_blockSize(newBlock) - get_blockSize(oldBlock));
+    char buffer[60];
+    sprintf(buffer, "Replacing a block...\n");
+    puts(buffer);
 }
 
 /*
@@ -401,6 +429,7 @@ void add_block_freeList(void *block)
     block_header *curr, *new_block;
 
     new_block = (block_header *)block;
+    new_block->is_free = 1;
 
     if (!freeListHead ||
         (unsigned long)freeListHead > (unsigned long)new_block) // checks if empty list or address smaller than head address
@@ -409,16 +438,22 @@ void add_block_freeList(void *block)
         {
             if (freeListHead->is_free) // if head exists and is free
             {
+                sprintf(buffer, "Free List Head\n");
+                puts(buffer);
                 freeListHead->size = ALIGN(freeListHead->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                 freeListHead = (void *)freeListHead;
             }
             else
             { // if head exists and is allocated
+                sprintf(buffer, "Allocated List Head\n");
+                puts(buffer);
                 freeListHead->prev = new_block;
                 new_block->next = freeListHead;
                 freeListHead = (void *)new_block;
             }
         } // if there is no free list head
+        sprintf(buffer, "No List Head\n");
+        puts(buffer);
         new_block->next = freeListHead;
         freeListHead = (void *)new_block;
         freeListTail = freeListHead;
@@ -429,7 +464,7 @@ void add_block_freeList(void *block)
         while (curr->next &&
                (unsigned long)curr->next < (unsigned long)new_block)
         {
-            // keep iterationg long as new_block's address is larger than current address
+            // keep iterating long as new_block's address is larger than current address
             curr = curr->next;
         }
 
@@ -437,11 +472,17 @@ void add_block_freeList(void *block)
         {
             if (curr->is_free)
             { // if tail is free
+                sprintf(buffer, "Free List Tail, size: %d\n", curr->size);
+                puts(buffer);
                 curr->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                 freeListTail = curr; // should not need to do this but let's be extra safe
+                sprintf(buffer, "New size: %d\n", curr->size);
+                puts(buffer);
             }
             else
             { // if tail block is not free
+                sprintf(buffer, "Allocated List Tail\n");
+                puts(buffer);
                 curr->next = new_block;
                 new_block->prev = curr;
                 freeListTail = new_block;
@@ -451,6 +492,8 @@ void add_block_freeList(void *block)
         {
             if (!curr->is_free && !curr->next->is_free)
             {
+                sprintf(buffer, "Both Allocated\n");
+                puts(buffer);
                 new_block->next = curr->next;
                 new_block->prev = curr;
                 curr->next->prev = new_block;
@@ -458,14 +501,20 @@ void add_block_freeList(void *block)
             }
             else if (curr->is_free && !curr->next->is_free)
             {
+                sprintf(buffer, "Prev Free, Next Alloc\n");
+                puts(buffer);
                 curr->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
             }
             else if (!curr->is_free && curr->next->is_free)
             {
+                sprintf(buffer, "Prev Alloc, Next Free\n");
+                puts(buffer);
                 curr->next->size = ALIGN(curr->next->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
             }
             else
             { // if both neighbors are free;
+                sprintf(buffer, "Both Free\n");
+                puts(buffer);
                 new_block->size = ALIGN(curr->size + new_block->size + curr->next->size - FREE_BLOCK_HEADER_SIZE);
                 new_block->next = curr->next->next;
                 new_block->prev = curr->prev;
@@ -542,4 +591,25 @@ int get_largest_freeBlock()
     //	TODO: Iterate through the Free Block List to find the largest free block and return its size
 
     return largestBlockSize;
+}
+
+int get_num_blocks()
+{
+    int num_blocks;
+    block_header *curr;
+
+    if (!freeListHead)
+    {
+        return 0;
+    }
+    else
+    {
+        curr = freeListHead;
+        num_blocks = 1;
+        while (curr->next)
+        {
+            num_blocks++;
+        }
+    }
+    return num_blocks;
 }

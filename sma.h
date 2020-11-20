@@ -60,5 +60,5 @@ static int get_largest_freeBlock();
 static void get_address_list();
 static block_header *get_block(void *);
 static void get_addresses();
-static int get_num_blocks();
+static int list_details();
 //  TODO: Declare any private functions that you intend to add in your code.

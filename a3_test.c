@@ -64,6 +64,8 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
+	sleep(2);
+
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
 
@@ -84,6 +86,7 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
+	sleep(5);
 	// Test 3: Worst Fit Test
 	puts("Test 3: Check for Worst Fit algorithm...");
 	// Sets Policy to Worst Fit
@@ -137,6 +140,7 @@ int main(int argc, char *argv[])
 	//	Freeing cp2
 	sma_free(cp2);
 
+	sleep(2);
 	// Test 4: Next Fit Test
 	puts("Test 4: Check for Next Fit algorithm...");
 	// Sets Policy to Next Fit
@@ -166,10 +170,12 @@ int main(int argc, char *argv[])
 		puts("\t\t\t\t FAILED\n");
 	}
 
+	sleep(2);
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
 	// Writes some value pointed by the pointer
-	if(cp3 != NULL && cp4 != NULL) {
+	if (cp3 != NULL && cp4 != NULL)
+	{
 		*cp3 = 427;
 		*cp4 = 310;
 	}
@@ -180,18 +186,21 @@ int main(int argc, char *argv[])
 	if (cp3 == c2[27] && cp3 != NULL && cp4 == c2[8] && cp4 != NULL)
 	{
 		//	Test the Data stored in the memory blocks
-		if (*cp3 == 427 && *cp4 == 310) {
+		if (*cp3 == 427 && *cp4 == 310)
+		{
 			puts("\t\t\t\t PASSED\n");
 		}
-		else {
+		else
+		{
 			puts("\t\t\t\t FAILED\n");
-		}				
+		}
 	}
 	else
 	{
 		puts("\t\t\t\t FAILED\n");
 	}
 
+	sleep(2);
 	//	Test 6: Print Stats
 	puts("Test 6: Print SMA Statistics...");
 	puts("===============================");

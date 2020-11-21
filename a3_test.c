@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
-	sleep(2);
+	//sleep(2);
 
 	// Test 2: Program Break expansion Test
 	puts("Test 2: Program break expansion test...");
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	else
 		puts("\t\t\t\t FAILED\n");
 
-	sleep(2);
+	//sleep(2);
 	// Test 3: Worst Fit Test
 	puts("Test 3: Check for Worst Fit algorithm...");
 	// Sets Policy to Worst Fit
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		puts("\t\t\t\t FAILED\n");
 	}
 
-	sleep(2);
+	//sleep(2);
 	// Test 5: Realloc test (with Next Fit)
 	puts("Test 5: Check for Reallocation with Next Fit...");
 	// Writes some value pointed by the pointer
@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
 		puts("\t\t\t\t FAILED\n");
 	}
 
-	sleep(2);
+	//sleep(2);
 	//	Test 6: Print Stats
 	puts("Test 6: Print SMA Statistics...");
 	puts("===============================");

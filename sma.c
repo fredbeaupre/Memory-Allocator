@@ -118,8 +118,6 @@ void sma_free(void *ptr)
     else
     {
         //	Adds the block to the free memory list
-        sprintf(buffer, "Freeing block of %p\n", block);
-        puts(buffer);
         add_block_freeList(ptr);
     }
 }
@@ -201,8 +199,8 @@ void *allocate_pBrk(int size)
     int newSize;
     block_header *new_block;
     char buffer[200];
-    sprintf(buffer, "Increasing program break ---> Requesting new block of size %d\n", size);
-    puts(buffer);
+    //sprintf(buffer, "Increasing program break ---> Requesting new block of size %d\n", size);
+    //puts(buffer);
 
     //	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
     //	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -267,7 +265,7 @@ void *allocate_worst_fit(int size)
     int tail_size = freeListTail->size;
     char buffer[200];
 
-    list_details();
+    //list_details();
     // sleep(1);
 
     //	TODO: 	Allocate memory by using Worst Fit Policy
@@ -313,14 +311,14 @@ void *allocate_worst_fit(int size)
         excessSize = max_size - size - FREE_BLOCK_HEADER_SIZE;
         worstBlock = (void *)chosen_block;
         last_allocated = worstBlock; // for next fit
-        sprintf(buffer, "Trying to allocate worst block of %p size %d and add free block of size %d", chosen_block, chosen_block->size, excessSize);
-        puts(buffer);
+        //sprintf(buffer, "Trying to allocate worst block of %p size %d and add free block of size %d", chosen_block, chosen_block->size, excessSize);
+        //puts(buffer);
         allocate_block(worstBlock, size, excessSize, 1);
     }
     else
     {
         //	Assigns invalid address if appropriate block not found in free list
-        puts("NO BLOCK FOUND\n");
+        // puts("NO BLOCK FOUND\n");
         worstBlock = (void *)-2;
     }
 
@@ -341,11 +339,11 @@ void *allocate_next_fit(int size)
     int next_size;
     char buffer[100];
 
-    list_details();
-    sleep(1);
+    // list_details();
+    //sleep(1);
 
-    sprintf(buffer, "Last allocated block %p\n", last_allocated);
-    puts(buffer);
+    //sprintf(buffer, "Last allocated block %p\n", last_allocated);
+    //puts(buffer);
 
     block_header *curr, *chosen_block, *last_alloc;
 
@@ -358,13 +356,10 @@ void *allocate_next_fit(int size)
     //			Program Break, you start from the beginning of your heap, as in with the free block with
     //			the smallest address)
 
-    sprintf(buffer, "curr %p\n", curr);
-    puts(buffer);
     while (curr)
     {
         if (curr == last_allocated)
         {
-            puts("PROBLEM IS HERE\n");
             blockFound = 0;
             break;
         }
@@ -385,7 +380,6 @@ void *allocate_next_fit(int size)
         excessSize = next_size - chosen_block->size;
         nextBlock = (void *)chosen_block;
         last_allocated = nextBlock;
-        sprintf(buffer, "Trying to allocate next block %p with size %d\n", chosen_block, chosen_block->size);
         //	Allocates the Memory Block
         allocate_block(nextBlock, size, excessSize, 1);
     }
@@ -419,8 +413,6 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
     //	TODO: Adjust the condition based on your Head and Tail size (depends on your TAG system)
     //	Hint: Might want to have a minimum size greater than the Head/Tail sizes
     addFreeBlock = excessSize > FREE_BLOCK_HEADER_SIZE;
-    sprintf(buffer, "addFreeBlock %d\n", excessSize);
-    puts(buffer);
 
     //	If excess free size is big enough
     if (addFreeBlock)
@@ -438,15 +430,12 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
         if (fromFreeList)
         {
             //	Removes new block and adds the excess free block to the free list
-            sprintf(buffer, "Allocating block of size %d and adding block of size %d\n", new_block->size, free_block->size);
-            puts(buffer);
             replace_block_freeList(newBlock, excessFreeBlock);
         }
         else
         {
             //	Adds excess free block to the free list
-            sprintf(buffer, "Adding block %p to freeList\n", free_block);
-            puts(buffer);
+
             add_block_freeList(excessFreeBlock);
         }
     }
@@ -461,8 +450,6 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
         if (fromFreeList)
         {
             //	Removes the new block from the free list
-            sprintf(buffer, "Allocating block %p\n", new_block);
-            puts(buffer);
             remove_block_freeList(newBlock);
         }
     }
@@ -482,8 +469,6 @@ void replace_block_freeList(void *oldBlock, void *newBlock)
     totalAllocatedSize += (get_blockSize(oldBlock) - get_blockSize(newBlock));
     totalFreeSize += (get_blockSize(newBlock) - get_blockSize(oldBlock));
     char buffer[60];
-    sprintf(buffer, "Replacing block %p; adding block %p\n", oldBlock, newBlock);
-    puts(buffer);
 
     block_header *alloc_block, *free_block;
 
@@ -529,18 +514,14 @@ void add_block_freeList(void *block)
         {
             if (freeListHead->is_free) // if head exists and is free
             {
-                sprintf(buffer, "Free List Head %p, size: %d\n", freeListHead, freeListHead->size);
-                puts(buffer);
+
                 new_block->size = ALIGN(freeListHead->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                 freeListHead->next->prev = new_block;
                 freeListHead = new_block;
-                sprintf(buffer, "After merge ->  %p; size %d\n", new_block, new_block->size);
-                puts(buffer);
             }
             else
             { // if head exists and is allocated
-                sprintf(buffer, "Allocated List Head %p", freeListHead);
-                puts(buffer);
+
                 freeListHead->prev = new_block;
                 new_block->next = freeListHead;
                 freeListHead = (void *)new_block;
@@ -549,8 +530,6 @@ void add_block_freeList(void *block)
         new_block->next = freeListHead;
         freeListHead = (void *)new_block;
         freeListTail = freeListHead;
-        sprintf(buffer, "No list head --> new head %p, size: %d\n", new_block, new_block->size);
-        puts(buffer);
     }
     else
     {
@@ -646,8 +625,6 @@ void add_block_freeList(void *block)
             {
                 if (curr->is_free)
                 { // if tail is free
-                    sprintf(buffer, "Free List Tail %p, size: %d\n", curr, curr->size);
-                    puts(buffer);
                     new_block->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                     limit_check = checkValidTail(new_block);
                     if (!limit_check)
@@ -659,27 +636,20 @@ void add_block_freeList(void *block)
                         new_block->prev = curr->prev;
                         curr->prev->next = new_block;
                         freeListTail = new_block; // should not need to do this but let's be extra safe
-                        sprintf(buffer, "After merge: %p; size %d\n", curr, curr->size);
-                        puts(buffer);
                     }
                 }
                 else
                 { // if tail block is not free
-                    sprintf(buffer, "Allocated List Tail %p\n", curr);
-                    puts(buffer);
                     curr->next = new_block;
                     new_block->prev = curr;
                     freeListTail = new_block;
-                    sprintf(buffer, "After merge, tail is %p\n", freeListTail);
-                    puts(buffer);
                 }
             }
             else // if curr isn't list tail or list head
             {
                 if (!curr->is_free && !curr->next->is_free)
                 {
-                    sprintf(buffer, "Both Allocated\n");
-                    puts(buffer);
+
                     new_block->next = curr->next;
                     new_block->prev = curr;
                     curr->next->prev = new_block;
@@ -687,15 +657,12 @@ void add_block_freeList(void *block)
                 }
                 else if (curr->is_free && !curr->next->is_free)
                 {
-                    sprintf(buffer, "Prev Free with size %d, Next Alloc\n", curr->size);
-                    puts(buffer);
+
                     new_block->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                     new_block->next = curr->next;
                     new_block->prev = curr->prev;
                     curr->prev->next = new_block;
                     curr->next->prev = new_block;
-                    sprintf(buffer, "Prev size after merge %d\n", curr->size);
-                    puts(buffer);
                 }
                 else if (!curr->is_free && curr->next->is_free)
                 {
@@ -708,21 +675,17 @@ void add_block_freeList(void *block)
                     }
                     else
                     {
-                        sprintf(buffer, "Prev Alloc, Next Free with size %d\n", curr->next->size);
-                        puts(buffer);
+
                         new_block->size = ALIGN(curr->next->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
                         new_block->next = curr->next->next;
                         new_block->prev = curr;
                         curr->next->next->prev = new_block;
                         curr->next = new_block;
-                        sprintf(buffer, "Next size after merge %d\n", curr->next->size);
-                        puts(buffer);
                     }
                 }
                 else
                 { // if both neighbors are free;
-                    sprintf(buffer, "Both Free, sizes %d and %d\n", curr->size, curr->next->size);
-                    puts(buffer);
+
                     new_block->size = ALIGN(curr->size + new_block->size + curr->next->size - FREE_BLOCK_HEADER_SIZE);
                     new_block->next = curr->next->next;
                     new_block->prev = curr->prev;
@@ -730,13 +693,11 @@ void add_block_freeList(void *block)
                     curr->prev->next = new_block;
                     curr->prev = NULL;
                     curr->next->next = NULL;
-                    sprintf(buffer, "Size after merge %d\n", new_block->size);
-                    puts(buffer);
                 }
             }
         }
     }
-    list_details();
+    //list_details();
 }
 
 /*
@@ -777,8 +738,8 @@ void remove_block_freeList(void *block)
         dead_block->prev->next = dead_block->next;
     }
 
-    sprintf(buffer, "Removing block %p of size %d from list\n", dead_block, dead_block->size);
-    puts(buffer);
+    //sprintf(buffer, "Removing block %p of size %d from list\n", dead_block, dead_block->size);
+    //puts(buffer);
 }
 
 /*

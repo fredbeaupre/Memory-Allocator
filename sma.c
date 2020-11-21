@@ -43,7 +43,7 @@ unsigned long totalAllocatedSize = 0; //	Total Allocated memory in Bytes
 unsigned long totalFreeSize = 0;      //	Total Free memory in Bytes in the free memory list
 Policy currentPolicy = WORST;         //	Current Policy
 //	TODO: Add any global variables here
-
+void *last_allocated;
 /*
  * =====================================================================================
  *	Public Functions for SMA
@@ -162,7 +162,6 @@ void sma_mallinfo()
     puts(str);
     sprintf(str, "Size of largest contigious free space (in bytes): %d", largestFreeBlock);
     puts(str);
-    list_details();
 }
 
 /*
@@ -216,6 +215,8 @@ void *allocate_pBrk(int size)
     new_block->size = ALIGN(FREE_BLOCK_HEADER_SIZE + size);
     new_block->address = new_block + FREE_BLOCK_HEADER_SIZE;
 
+    last_allocated = new_block; // for next fit
+
     newBlock = new_block;
     allocate_block(newBlock, size, excessSize, 0);
 
@@ -263,48 +264,39 @@ void *allocate_worst_fit(int size)
     int blockFound = 0;
     block_header *chosen_block, *curr;
     int max_size = 0;
+    int tail_size = freeListTail->size;
     char buffer[200];
 
     list_details();
-    sleep(1);
+    // sleep(1);
 
     //	TODO: 	Allocate memory by using Worst Fit Policy
     //	Hint:	Start off with the freeListHead and iterate through the entire list to
     //			get the largest block
 
     curr = freeListHead;
-    if (!curr->is_free && !curr->next)
+
+    if (!curr || !curr->is_free && !curr->next)
     {
-        blockFound = 0;
+        max_size = 0;
     }
     else
     {
         while (curr)
         {
-            if (!curr->next)
-            {
-                if (curr->is_free)
-                {
-                    max_size = curr->size;
-                    chosen_block = curr;
-                    break;
-                }
-                else
-                {
-                    max_size = 0;
-                    break;
-                }
-            }
-            if (curr->size > max_size && curr->is_free)
+            if (curr->size > max_size)
             {
                 max_size = curr->size;
                 chosen_block = curr;
             }
-
             curr = curr->next;
         }
+    }
 
-        blockFound = (max_size > size) ? 1 : 0;
+    if (tail_size > max_size)
+    {
+        max_size = tail_size;
+        chosen_block = freeListTail;
     }
     // then we jump to allocate_block and then to replace_block_freelist
 
@@ -317,6 +309,7 @@ void *allocate_worst_fit(int size)
         //	Allocates the Memory Block
         excessSize = max_size - size - FREE_BLOCK_HEADER_SIZE;
         worstBlock = (void *)chosen_block;
+        last_allocated = worstBlock;
         sprintf(buffer, "Trying to allocate worst block of %p size %d and add free block of size %d", chosen_block, chosen_block->size, excessSize);
         puts(buffer);
         allocate_block(worstBlock, size, excessSize, 1);
@@ -342,6 +335,19 @@ void *allocate_next_fit(int size)
     void *nextBlock = NULL;
     int excessSize;
     int blockFound = 0;
+    int next_size;
+    char buffer[100];
+
+    list_details();
+    sleep(1);
+
+    sprintf(buffer, "Last allocated block %p\n", last_allocated);
+    puts(buffer);
+
+    block_header *curr, *chosen_block, *last_alloc;
+
+    last_alloc = (block_header *)last_allocated;
+    curr = last_alloc->next;
 
     //	TODO: 	Allocate memory by using Next Fit Policy
     //	Hint:	You should use a global pointer to keep track of your last allocated memory address, and
@@ -349,9 +355,34 @@ void *allocate_next_fit(int size)
     //			Program Break, you start from the beginning of your heap, as in with the free block with
     //			the smallest address)
 
+    sprintf(buffer, "curr %p\n", curr);
+    puts(buffer);
+    while (curr)
+    {
+        if (curr == last_allocated)
+        {
+            puts("PROBLEM IS HERE\n");
+            blockFound = 0;
+            break;
+        }
+        else if (curr->is_free && curr->size > size)
+        {
+            next_size = curr->size;
+            chosen_block = curr;
+            blockFound = 1;
+            break;
+        }
+        curr = (!curr->next) ? freeListHead : curr->next;
+    }
+
     //	Checks if appropriate found is found.
     if (blockFound)
     {
+        chosen_block->size = ALIGN(FREE_BLOCK_HEADER_SIZE + size);
+        excessSize = next_size - chosen_block->size;
+        nextBlock = (void *)chosen_block;
+        last_allocated = nextBlock;
+        sprintf(buffer, "Trying to allocate next block %p with size %d\n", chosen_block, chosen_block->size);
         //	Allocates the Memory Block
         allocate_block(nextBlock, size, excessSize, 1);
     }
@@ -376,6 +407,7 @@ void allocate_block(void *newBlock, int size, int excessSize, int fromFreeList)
     int addFreeBlock;
     block_header *free_block, *new_block;
     char buffer[60];
+    last_allocated = newBlock;
     new_block = (block_header *)newBlock;
 
     // 	Checks if excess free size is big enough to be added to the free memory list

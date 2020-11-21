@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 	char *c[32], *ct;
 	int *c2[32];
 	char str[60];
+	char buffer[100];
 
 	// Test 1: Find the holes
 	puts("Test 1: Excess Memory Allocation...");
@@ -57,6 +58,10 @@ int main(int argc, char *argv[])
 	ct = (char *)sma_malloc(5 * 1024);
 	// sprintf(str, "CT : %p", ct);
 	// puts(str);
+	sprintf(buffer, "address found %p\n", ct);
+	puts(buffer);
+	sprintf(buffer, "address we wanted to be bigger than %p\n", c[31]);
+	puts(buffer);
 
 	// Testing if you are allocating excess memory at the end
 	if (ct > c[31])
@@ -127,22 +132,27 @@ int main(int argc, char *argv[])
 	// Testing if the correct hole has been allocated
 	if (cp2 != NULL)
 	{
+		sprintf(buffer, "Hole allocated %p\n", cp2);
 		if (cp2 == c2[27] || cp2 == c2[28] || cp2 == c2[29] || cp2 == c2[30])
 			puts("\t\t\t\t PASSED\n");
 		else
-			puts("\t\t\t\t FAILED\n");
+			sprintf(buffer, "\t\t\t\tWRONG ADDRESS %p\nExpected %p or\n%p or\n%p or\n%p\n", cp2, c2[27], c2[28], c2[29], c2[30]);
+		puts(buffer);
+		puts("\t\t\t\t FAILED\n");
 	}
 	else
 	{
+		puts("\t\t\t\tNULL pointer\n");
 		puts("\t\t\t\t FAILED\n");
 	}
 
 	//	Freeing cp2
 	sma_free(cp2);
 
-	sleep(2);
+	sleep(5);
 	// Test 4: Next Fit Test
 	puts("Test 4: Check for Next Fit algorithm...");
+	sleep(5);
 	// Sets Policy to Next Fit
 	sma_mallopt(NEXT_FIT);
 

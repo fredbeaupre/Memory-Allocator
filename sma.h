@@ -61,4 +61,5 @@ static void get_address_list();
 static block_header *get_block(void *);
 static void get_addresses();
 static int list_details();
+static int checkValidTail(block_header *tail);
 //  TODO: Declare any private functions that you intend to add in your code.

@@ -198,10 +198,12 @@ void *sma_realloc(void *ptr, int size)
 void *allocate_pBrk(int size)
 {
     void *newBlock = NULL;
-    int excessSize = 8 * 1024; // 2KB
+    int excessSize = 32 * 1024; // 32KB
     int newSize;
     block_header *new_block;
-    puts("Increasing program break --->\n");
+    char buffer[200];
+    sprintf(buffer, "Increasing program break ---> Requesting new block of size %d\n", size);
+    puts(buffer);
 
     //	TODO: 	Allocate memory by incrementing the Program Break by calling sbrk() or brk()
     //	Hint:	Getting an exact "size" of memory might not be the best idea. Why?
@@ -264,7 +266,7 @@ void *allocate_worst_fit(int size)
     char buffer[200];
 
     list_details();
-    usleep(10000);
+    sleep(1);
 
     //	TODO: 	Allocate memory by using Worst Fit Policy
     //	Hint:	Start off with the freeListHead and iterate through the entire list to
@@ -478,6 +480,7 @@ void add_block_freeList(void *block)
     totalAllocatedSize -= get_blockSize(block);
     totalFreeSize += get_blockSize(block);
     char buffer[60];
+    int limit_check;
 
     block_header *curr, *new_block;
 
@@ -493,9 +496,10 @@ void add_block_freeList(void *block)
             {
                 sprintf(buffer, "Free List Head %p, size: %d\n", freeListHead, freeListHead->size);
                 puts(buffer);
-                freeListHead->size = ALIGN(freeListHead->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
-                freeListHead = (void *)freeListHead;
-                sprintf(buffer, "After merge ->  %p; size %d\n", freeListHead, freeListHead->size);
+                new_block->size = ALIGN(freeListHead->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+                freeListHead->next->prev = new_block;
+                freeListHead = new_block;
+                sprintf(buffer, "After merge ->  %p; size %d\n", new_block, new_block->size);
                 puts(buffer);
             }
             else
@@ -523,73 +527,181 @@ void add_block_freeList(void *block)
             curr = curr->next;
         }
 
-        if (!curr->next) // if curr is list tail
-        {
-            if (curr->is_free)
-            { // if tail is free
-                sprintf(buffer, "Free List Tail %p, size: %d\n", curr, curr->size);
-                puts(buffer);
-                new_block->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
-                new_block->prev = curr->prev;
-                curr->prev->next = new_block;
-                freeListTail = new_block; // should not need to do this but let's be extra safe
-                sprintf(buffer, "After merge: %p; size %d\n", curr, curr->size);
-                puts(buffer);
+        if ((unsigned long)curr->next == (unsigned long)new_block)
+        { // we have that curr->next == new_block
+
+            if (!new_block->next) // if new_block is tail
+            {
+                if (new_block->prev->is_free) // if previous block is free
+                {
+                    new_block->size = ALIGN(new_block->size + new_block->prev->size - FREE_BLOCK_HEADER_SIZE);
+                    limit_check = checkValidTail(new_block);
+                    if (!limit_check)
+                    {
+                        // do nothing
+                    }
+                    else
+                    {
+                        new_block->prev->prev->next = new_block;
+                        new_block->prev = new_block->prev->prev;
+                        new_block->is_free = 1;
+                    }
+                }
+                else
+                {
+                    new_block->is_free = 1;
+                }
+            }
+            else if (!new_block->prev)
+            {                                 // if new_block is head
+                if (new_block->next->is_free) // if next block is free
+                {
+                    new_block->size = ALIGN(new_block->size + new_block->next->size - FREE_BLOCK_HEADER_SIZE);
+                    new_block->next->next->prev = new_block;
+                    new_block->next = new_block->next->next;
+                    new_block->is_free = 1;
+                }
+                else
+                {
+                    new_block->is_free = 1;
+                }
             }
             else
-            { // if tail block is not free
-                sprintf(buffer, "Allocated List Tail %p\n", curr);
-                puts(buffer);
-                curr->next = new_block;
-                new_block->prev = curr;
-                freeListTail = new_block;
-                sprintf(buffer, "After merge, tail is %p\n", freeListTail);
-                puts(buffer);
+            { // if intermediate block
+                if (!new_block->prev->is_free && !new_block->next->is_free)
+                {
+                    new_block->is_free = 1;
+                }
+                else if (new_block->prev->is_free && !new_block->next->is_free)
+                {
+                    new_block->size = ALIGN(new_block->size + new_block->prev->size - FREE_BLOCK_HEADER_SIZE);
+                    new_block->prev->prev->next = new_block;
+                    new_block->prev = new_block->prev->prev;
+                    new_block->is_free = 1;
+                }
+                else if (!new_block->prev->is_free && new_block->next->is_free)
+                {
+                    if (!new_block->next->next)
+                    {
+                        new_block->is_free = 1; // to avoid accessing null value if we have curr->next->tail
+                    }
+                    else
+                    {
+                        new_block->size = ALIGN(new_block->size + new_block->next->size - FREE_BLOCK_HEADER_SIZE);
+                        new_block->next->next->prev = new_block;
+                        new_block->next = new_block->next->next;
+                        new_block->is_free = 1;
+                    }
+                }
+                else if (new_block->prev->is_free && new_block->next->is_free)
+                {
+                    new_block->size = ALIGN(new_block->prev->size + new_block->size + new_block->next->size - 2 * FREE_BLOCK_HEADER_SIZE);
+                    new_block->prev->prev->next = new_block;
+                    new_block->prev = new_block->prev->prev;
+                    new_block->next->next->prev = new_block;
+                    new_block->next = new_block->next->next;
+                    new_block->is_free = 1;
+                }
             }
         }
-        else
+        else // else we are adding an entirely new block from the free list
         {
-            if (!curr->is_free && !curr->next->is_free)
+
+            if (!curr->next) // if curr is list tail
             {
-                sprintf(buffer, "Both Allocated\n");
-                puts(buffer);
-                new_block->next = curr->next;
-                new_block->prev = curr;
-                curr->next->prev = new_block;
-                curr->next = new_block;
-            }
-            else if (curr->is_free && !curr->next->is_free)
-            {
-                sprintf(buffer, "Prev Free with size %d, Next Alloc\n", curr->size);
-                puts(buffer);
-                curr->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
-                sprintf(buffer, "Prev size after merge %d\n", curr->size);
-                puts(buffer);
-            }
-            else if (!curr->is_free && curr->next->is_free)
-            {
-                sprintf(buffer, "Prev Alloc, Next Free with size %d\n", curr->next->size);
-                puts(buffer);
-                curr->next->size = ALIGN(curr->next->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
-                sprintf(buffer, "Next size after merge %d\n", curr->next->size);
-                puts(buffer);
+                if (curr->is_free)
+                { // if tail is free
+                    sprintf(buffer, "Free List Tail %p, size: %d\n", curr, curr->size);
+                    puts(buffer);
+                    new_block->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+                    limit_check = checkValidTail(new_block);
+                    if (!limit_check)
+                    {
+                        // don't update tail as it will exceed limit, keep list as is
+                    }
+                    else
+                    {
+                        new_block->prev = curr->prev;
+                        curr->prev->next = new_block;
+                        freeListTail = new_block; // should not need to do this but let's be extra safe
+                        sprintf(buffer, "After merge: %p; size %d\n", curr, curr->size);
+                        puts(buffer);
+                    }
+                }
+                else
+                { // if tail block is not free
+                    sprintf(buffer, "Allocated List Tail %p\n", curr);
+                    puts(buffer);
+                    curr->next = new_block;
+                    new_block->prev = curr;
+                    freeListTail = new_block;
+                    sprintf(buffer, "After merge, tail is %p\n", freeListTail);
+                    puts(buffer);
+                }
             }
             else
-            { // if both neighbors are free;
-                sprintf(buffer, "Both Free, sizes %d and %d\n", curr->size, curr->next->size);
-                puts(buffer);
-                new_block->size = ALIGN(curr->size + new_block->size + curr->next->size - FREE_BLOCK_HEADER_SIZE);
-                new_block->next = curr->next->next;
-                new_block->prev = curr->prev;
-                curr->next->next->prev = new_block;
-                curr->prev->next = new_block;
-                curr->prev = NULL;
-                curr->next->next = NULL;
-                sprintf(buffer, "Size after merge %d\n", new_block->size);
-                puts(buffer);
+            {
+                if (!curr->is_free && !curr->next->is_free)
+                {
+                    sprintf(buffer, "Both Allocated\n");
+                    puts(buffer);
+                    new_block->next = curr->next;
+                    new_block->prev = curr;
+                    curr->next->prev = new_block;
+                    curr->next = new_block;
+                }
+                else if (curr->is_free && !curr->next->is_free)
+                {
+                    sprintf(buffer, "Prev Free with size %d, Next Alloc\n", curr->size);
+                    puts(buffer);
+                    new_block->size = ALIGN(curr->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+                    new_block->next = curr->next;
+                    new_block->prev = curr->prev;
+                    curr->prev->next = new_block;
+                    curr->next->prev = new_block;
+                    sprintf(buffer, "Prev size after merge %d\n", curr->size);
+                    puts(buffer);
+                }
+                else if (!curr->is_free && curr->next->is_free)
+                {
+                    if (!curr->next->next)
+                    {
+                        new_block->prev = curr;
+                        new_block->next = curr->next;
+                        curr->next->prev = new_block;
+                        curr->next = new_block;
+                    }
+                    else
+                    {
+                        sprintf(buffer, "Prev Alloc, Next Free with size %d\n", curr->next->size);
+                        puts(buffer);
+                        new_block->size = ALIGN(curr->next->size + new_block->size - FREE_BLOCK_HEADER_SIZE);
+                        new_block->next = curr->next->next;
+                        new_block->prev = curr;
+                        curr->next->next->prev = new_block;
+                        curr->next = new_block;
+                        sprintf(buffer, "Next size after merge %d\n", curr->next->size);
+                        puts(buffer);
+                    }
+                }
+                else
+                { // if both neighbors are free;
+                    sprintf(buffer, "Both Free, sizes %d and %d\n", curr->size, curr->next->size);
+                    puts(buffer);
+                    new_block->size = ALIGN(curr->size + new_block->size + curr->next->size - FREE_BLOCK_HEADER_SIZE);
+                    new_block->next = curr->next->next;
+                    new_block->prev = curr->prev;
+                    curr->next->next->prev = new_block;
+                    curr->prev->next = new_block;
+                    curr->prev = NULL;
+                    curr->next->next = NULL;
+                    sprintf(buffer, "Size after merge %d\n", new_block->size);
+                    puts(buffer);
+                }
             }
         }
     }
+    list_details();
 }
 
 /*
@@ -716,4 +828,12 @@ int list_details()
     puts(buffer);
     puts("------------------------------------------------\n");
     return num_blocks;
+}
+
+int checkValidTail(block_header *tail)
+{
+    int valid;
+
+    valid = (tail->size < MAX_TOP_FREE) ? 1 : 0;
+    return valid;
 }

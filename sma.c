@@ -276,6 +276,7 @@ void *allocate_worst_fit(int size)
 
     curr = freeListHead;
 
+    // loop through freeList and find largest block
     if (!curr || !curr->is_free && !curr->next)
     {
         max_size = 0;
@@ -300,6 +301,7 @@ void *allocate_worst_fit(int size)
     }
     // then we jump to allocate_block and then to replace_block_freelist
 
+    // set largest block size when we'll allocated
     chosen_block->size = ALIGN(FREE_BLOCK_HEADER_SIZE + size);
     chosen_block->is_free = 0;
 
@@ -307,9 +309,10 @@ void *allocate_worst_fit(int size)
     if (blockFound)
     {
         //	Allocates the Memory Block
+        // calculates excess from difference between request size and block size
         excessSize = max_size - size - FREE_BLOCK_HEADER_SIZE;
         worstBlock = (void *)chosen_block;
-        last_allocated = worstBlock;
+        last_allocated = worstBlock; // for next fit
         sprintf(buffer, "Trying to allocate worst block of %p size %d and add free block of size %d", chosen_block, chosen_block->size, excessSize);
         puts(buffer);
         allocate_block(worstBlock, size, excessSize, 1);
@@ -671,7 +674,7 @@ void add_block_freeList(void *block)
                     puts(buffer);
                 }
             }
-            else
+            else // if curr isn't list tail or list head
             {
                 if (!curr->is_free && !curr->next->is_free)
                 {
@@ -823,6 +826,7 @@ int get_largest_freeBlock()
     return largestBlockSize;
 }
 
+// For outputting list details
 int list_details()
 {
     int num_blocks;
@@ -862,6 +866,7 @@ int list_details()
     return num_blocks;
 }
 
+// To check that top free block does not exceed 128 KB
 int checkValidTail(block_header *tail)
 {
     int valid;
